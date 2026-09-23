@@ -36,6 +36,10 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Routes
+app.get('/', (req, res) => {
+  res.json({ service: 'Test API (Mock Upstream)', status: 'ok', endpoints: ['/orders', '/users/:id', '/products', '/login'] });
+});
+
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   if (username === 'admin' && password === 'admin') {
