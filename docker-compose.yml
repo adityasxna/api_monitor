@@ -150,6 +150,8 @@ services:
       dockerfile: packages/traffic-generator/Dockerfile
     environment:
       GATEWAY_URL: http://gateway:3000
+      TEST_API_URL: http://test-api:3001
+      ANALYTICS_URL: http://analytics:3002
       RPS: "8"
     depends_on:
       - gateway

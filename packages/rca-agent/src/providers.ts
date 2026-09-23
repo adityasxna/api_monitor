@@ -37,6 +37,7 @@ export interface LlmProvider {
 class GroqProvider implements LlmProvider {
   private client: OpenAI;
   private model: string;
+  private modelResolved = false;
 
   constructor() {
     this.client = new OpenAI({
@@ -46,9 +47,68 @@ class GroqProvider implements LlmProvider {
     this.model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
   }
 
+  private async resolveModel(): Promise<void> {
+    if (this.modelResolved) return;
+    if (process.env.GROQ_MODEL) {
+      this.modelResolved = true;
+      return;
+    }
+
+    try {
+      const modelsList = await this.client.models.list();
+      const availableIds = modelsList.data.map(m => m.id);
+      
+      const preferred = [
+        'llama-3.3-70b-versatile',
+        'llama-3.1-70b-versatile',
+        'llama-3.1-8b-instant',
+        'llama3-70b-8192',
+        'llama3-8b-8192',
+        'mixtral-8x7b-32768',
+      ];
+
+      const matched = preferred.find(id => availableIds.includes(id));
+      if (matched) {
+        this.model = matched;
+        console.log(`[RCA] Selected Groq model: ${this.model}`);
+      } else if (availableIds.length > 0) {
+        this.model = availableIds[0];
+        console.log(`[RCA] Using available Groq model: ${this.model}`);
+      }
+    } catch (err: any) {
+      console.warn(`[RCA] Could not auto-detect Groq models (${err.message}). Using default: ${this.model}`);
+    } finally {
+      this.modelResolved = true;
+    }
+  }
+
   async chat(messages: LlmMessage[], tools: LlmTool[]): Promise<LlmResponse> {
+    await this.resolveModel();
+
+    try {
+      return await this.executeChat(this.model, messages, tools);
+    } catch (err: any) {
+      if (err?.status === 404 || err?.message?.includes('404') || err?.message?.includes('does not exist')) {
+        console.warn(`[RCA] Model '${this.model}' returned 404. Attempting fallback model...`);
+        this.modelResolved = false;
+        try {
+          const modelsList = await this.client.models.list();
+          const availableIds = modelsList.data.map(m => m.id);
+          const fallback = availableIds.find(id => id !== this.model) || 'llama-3.1-8b-instant';
+          this.model = fallback;
+          console.log(`[RCA] Retrying with fallback model: ${this.model}`);
+          return await this.executeChat(this.model, messages, tools);
+        } catch (fallbackErr: any) {
+          throw err;
+        }
+      }
+      throw err;
+    }
+  }
+
+  private async executeChat(modelName: string, messages: LlmMessage[], tools: LlmTool[]): Promise<LlmResponse> {
     const response = await this.client.chat.completions.create({
-      model: this.model,
+      model: modelName,
       messages: messages as any,
       tools: tools.map(t => ({
         type: 'function' as const,

@@ -150,7 +150,7 @@ cp .env.example .env
 | `LLM_PROVIDER` | `none` | `groq` \| `ollama` \| `none` |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434/v1` | Ollama API URL (for local LLM) |
 | `OLLAMA_MODEL` | `llama3.1` | Ollama model name |
-| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model name |
+| `GROQ_MODEL` | *(Auto-detected)* | Groq model name (auto-detects available model if unset) |
 | `UPSTREAM_URL` | `http://test-api:3001` | Your upstream API address (gateway) |
 
 ### Configuring the AI RCA Agent
