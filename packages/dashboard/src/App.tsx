@@ -166,7 +166,7 @@ const Overview = () => {
     refetchInterval: 10_000,
   });
 
-  const overallScore = health?.overall_score ?? 100;
+  const overallScore = Number(health?.overall_score ?? 100);
 
   return (
     <div className="p-6">
@@ -174,8 +174,8 @@ const Overview = () => {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card title="System Health" value={`${overallScore.toFixed(1)}%`} subtitle="Overall score" color={scoreColor(overallScore)} />
-        <Card title="Performance" value={`${(health?.performance_score ?? 100).toFixed(1)}%`} subtitle="Latency score" color={scoreColor(health?.performance_score ?? 100)} />
-        <Card title="Reliability" value={`${(health?.reliability_score ?? 100).toFixed(1)}%`} subtitle="Error rate score" color={scoreColor(health?.reliability_score ?? 100)} />
+        <Card title="Performance" value={`${Number(health?.performance_score ?? 100).toFixed(1)}%`} subtitle="Latency score" color={scoreColor(Number(health?.performance_score ?? 100))} />
+        <Card title="Reliability" value={`${Number(health?.reliability_score ?? 100).toFixed(1)}%`} subtitle="Error rate score" color={scoreColor(Number(health?.reliability_score ?? 100))} />
         <Card title="Active Routes" value={String(metrics.length)} subtitle="Monitored endpoints" />
       </div>
 
