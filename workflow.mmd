@@ -1,0 +1,38 @@
+sequenceDiagram
+    autonumber
+
+    actor Client as Client / Traffic Generator
+    participant Gateway as Reverse Proxy Gateway (:3000)
+    participant Upstream as Test API (:3001)
+    participant Kafka as Apache Kafka Broker
+    participant Analytics as Stream Analytics Engine (:3002)
+    participant Postgres as PostgreSQL DB
+    participant Redis as Redis Cache & Pub/Sub
+    participant Dashboard as React SPA Dashboard (:5173)
+
+    Client->>Gateway: HTTP GET /orders/123
+    Gateway->>Gateway: Intercept request<br/>Generate request_id and record start_time
+    Gateway->>Upstream: Forward proxy request
+    Upstream-->>Gateway: HTTP 200 OK + payload
+    Gateway-->>Client: Complete HTTP response immediately
+
+    par Async Fire-and-Forget
+        Gateway-->>Kafka: Produce TelemetryEvent<br/>topic: telemetry.raw
+    end
+
+    Kafka-->>Analytics: Consume TelemetryEvent<br/>analytics-group
+    Analytics->>Analytics: Normalize route /orders/:id<br/>Buffer in 5s sliding window
+
+    Analytics->>Analytics: Every 5 seconds — Rollup Window
+    Analytics->>Postgres: Write batch rollups<br/>metrics_rollup and requests
+    Analytics->>Redis: Cache hot state<br/>Publish live_metrics tick
+    Analytics->>Analytics: Run anomaly detectors<br/>P95 > 150ms / errors > 5
+
+    opt Anomaly Detected
+        Analytics->>Postgres: Write anomaly record
+        Analytics->>Kafka: Publish to anomalies.detected
+    end
+
+    Redis-->>Analytics: Subscribed live_metrics tick
+    Analytics-->>Dashboard: WebSocket frame broadcast<br/>ws://localhost:3002
+    Dashboard->>Dashboard: Update React state<br/>Render live charts

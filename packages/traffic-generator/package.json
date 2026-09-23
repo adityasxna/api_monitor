@@ -5,13 +5,26 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "scenario:01": "ts-node src/scenarios/01-latency-spike.ts",
+    "scenario:02": "ts-node src/scenarios/02-error-spike.ts",
+    "scenario:03": "ts-node src/scenarios/03-traffic-flood.ts",
+    "scenario:04": "ts-node src/scenarios/04-login-flood.ts",
+    "scenario:05": "ts-node src/scenarios/05-endpoint-enumeration.ts",
+    "scenario:05b": "ts-node src/scenarios/05b-schema-violation.ts",
+    "scenario:06": "ts-node src/scenarios/06-deployment-correlation.ts",
+    "scenario:07": "ts-node src/scenarios/07-slow-query.ts",
+    "scenario:08": "ts-node src/scenarios/08-kafka-failure.ts",
+    "scenario:09": "ts-node src/scenarios/09-duplicate-events.ts",
+    "validate": "ts-node src/run-all-scenarios.ts"
   },
   "dependencies": {
-    "axios": "^1.6.8"
+    "axios": "^1.6.8",
+    "kafkajs": "^2.2.4"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
+    "@api-intelligence/shared": "*",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   }

@@ -1,6 +1,5 @@
-version: '3.8'
-
 services:
+  # ─── Infrastructure ───────────────────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
     environment:
@@ -12,29 +11,151 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U api_monitor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   kafka:
-    image: bitnami/kafka:3.6
+    image: apache/kafka:3.7.1
     environment:
-      - KAFKA_ENABLE_KRAFT=yes
-      - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
-      - KAFKA_CFG_BROKER_ID=1
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
-      - ALLOW_PLAINTEXT_LISTENER=yes
-      - KAFKA_KRAFT_CLUSTER_ID=NjI5ZWVlYTkxNGJjM2M0N
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     ports:
       - "9092:9092"
     volumes:
-      - kafka_data:/bitnami/kafka
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  # ─── Platform Services ────────────────────────────────────────────────────────
+  test-api:
+    build:
+      context: ./packages/test-api
+      dockerfile: Dockerfile
+    environment:
+      PORT: "3001"
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: api_monitor
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: api_monitor
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ./packages/gateway
+      dockerfile: Dockerfile
+    environment:
+      PORT: "3000"
+      UPSTREAM_URL: http://test-api:3001
+      KAFKA_BROKERS: kafka:9092
+    ports:
+      - "3000:3000"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      test-api:
+        condition: service_started
+    restart: unless-stopped
+
+  analytics:
+    build:
+      context: ./packages/analytics
+      dockerfile: Dockerfile
+    environment:
+      PORT: "3002"
+      KAFKA_BROKERS: kafka:9092
+      REDIS_URL: redis://redis:6379
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: api_monitor
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: api_monitor
+      RCA_AGENT_URL: http://rca-agent:3003
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  rca-agent:
+    build:
+      context: ./packages/rca-agent
+      dockerfile: Dockerfile
+    environment:
+      PORT: "3003"
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: api_monitor
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: api_monitor
+      ANALYTICS_URL: http://analytics:3002
+      # Set your Groq API key here or via .env file
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-none}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./packages/dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - analytics
+    restart: unless-stopped
+
+  traffic-generator:
+    build:
+      context: ./packages/traffic-generator
+      dockerfile: Dockerfile
+    environment:
+      GATEWAY_URL: http://gateway:3000
+      RPS: "8"
+    depends_on:
+      - gateway
+    restart: unless-stopped
+    profiles:
+      - traffic  # Only start with: docker compose --profile traffic up
 
 volumes:
   postgres_data:
