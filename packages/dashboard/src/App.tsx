@@ -152,17 +152,17 @@ const Overview = () => {
   useLiveMetrics();
   const { data: metrics = [], isLoading: metricsLoading } = useQuery({
     queryKey: ['metrics'],
-    queryFn: () => fetch(`${API}/api/metrics`).then(r => r.json()),
+    queryFn: () => fetch(`${API}/api/metrics`).then(r => { if (!r.ok) throw new Error('API Error'); return r.json(); }),
     refetchInterval: 10_000,
   });
   const { data: health } = useQuery({
     queryKey: ['health'],
-    queryFn: () => fetch(`${API}/api/health`).then(r => r.json()),
+    queryFn: () => fetch(`${API}/api/health`).then(r => { if (!r.ok) throw new Error('API Error'); return r.json(); }),
     refetchInterval: 30_000,
   });
   const { data: anomalies = [] } = useQuery({
     queryKey: ['anomalies-recent'],
-    queryFn: () => fetch(`${API}/api/anomalies?limit=5&minutes=60`).then(r => r.json()),
+    queryFn: () => fetch(`${API}/api/anomalies?limit=5&minutes=60`).then(r => { if (!r.ok) throw new Error('API Error'); return r.json(); }),
     refetchInterval: 10_000,
   });
 
@@ -246,7 +246,7 @@ const Overview = () => {
 const Endpoints = () => {
   const { data: metrics = [] } = useQuery({
     queryKey: ['metrics'],
-    queryFn: () => fetch(`${API}/api/metrics`).then(r => r.json()),
+    queryFn: () => fetch(`${API}/api/metrics`).then(r => { if (!r.ok) throw new Error('API Error'); return r.json(); }),
     refetchInterval: 10_000,
   });
 
@@ -386,7 +386,7 @@ const Incidents = () => {
   const [selected, setSelected] = useState<any>(null);
   const { data: incidents = [] } = useQuery({
     queryKey: ['incidents'],
-    queryFn: () => fetch(`${API}/api/incidents?limit=50`).then(r => r.json()),
+    queryFn: () => fetch(`${API}/api/incidents?limit=50`).then(r => { if (!r.ok) throw new Error('API Error'); return r.json(); }),
     refetchInterval: 15_000,
   });
 
