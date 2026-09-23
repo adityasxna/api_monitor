@@ -56,8 +56,8 @@ services:
   # ─── Platform Services ────────────────────────────────────────────────────────
   test-api:
     build:
-      context: ./packages/test-api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/test-api/Dockerfile
     environment:
       PORT: "3001"
       POSTGRES_HOST: postgres
@@ -73,8 +73,8 @@ services:
 
   gateway:
     build:
-      context: ./packages/gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/gateway/Dockerfile
     environment:
       PORT: "3000"
       UPSTREAM_URL: http://test-api:3001
@@ -90,8 +90,8 @@ services:
 
   analytics:
     build:
-      context: ./packages/analytics
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/analytics/Dockerfile
     environment:
       PORT: "3002"
       KAFKA_BROKERS: kafka:9092
@@ -114,8 +114,8 @@ services:
 
   rca-agent:
     build:
-      context: ./packages/rca-agent
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/rca-agent/Dockerfile
     environment:
       PORT: "3003"
       POSTGRES_HOST: postgres
@@ -136,8 +136,8 @@ services:
 
   dashboard:
     build:
-      context: ./packages/dashboard
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/dashboard/Dockerfile
     ports:
       - "5173:80"
     depends_on:
@@ -146,8 +146,8 @@ services:
 
   traffic-generator:
     build:
-      context: ./packages/traffic-generator
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: packages/traffic-generator/Dockerfile
     environment:
       GATEWAY_URL: http://gateway:3000
       RPS: "8"
